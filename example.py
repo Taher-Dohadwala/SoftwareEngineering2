@@ -1,27 +1,24 @@
-import random
 from multivariabledual import Dual
 
-m = random.random()*50
-b = random.random()*50
+def f(x,m,b):
+def loss(y,y1):
+        return abs(y-y1)**2
+m = 5
+b = -5
+X = [x for x in range(20)]
+Y = [f(x,m,b) for x in range(20)]
+pm = Dual(x=1)
+pb = Dual(x=1)
+pmacc = 0
+pbacc = 0
 
-
-X = [1,2,3,4,5,6,7,8,9,10]
-Y = [1.001,2.001,3.001,4.001,5.001,6.001,7.001,8.001,9.001,10.001]
-
-def loss(YL,Y):
-	return sum([(abs(Y[x]-YL[x])*0.1)**2 for x in range(len(YL))])*(1/len(YL))
-
-def model(P,X):
-	return [P[0]*x+P[1] for x in X]
-
-def derivative(m,l,P,X,Y):
-	P = [Dual(x=x) for x in P]
-	r = l(Y,m(P,X))
-	D = [r[x] for x in P]
-	return D
-
-p = [0,0]
-for x in range(10):
-	d = derivative(model,loss,p,X,Y)
-	p = [p[x]-d[x]*0.001 for x in range(len(p))]
-	print(str(d) + " : " + str(loss(Y,model(p,X))) + " : " + str(p))
+for i in range(100):
+        for s in range(len(X)):
+                o = loss(Y[s],f(X[s],pm,pb))
+                pmacc+=o[pm]
+                pbacc+=o[pb]
+        pmacc= float(pmacc)/len(X)
+        pbacc= float(pbacc)/len(X)
+        pm.x-=pmacc*0.001
+        pb.x-=pbacc*0.001
+        print(pmacc,pbacc)

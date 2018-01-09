@@ -1,12 +1,19 @@
 class Dual:
+	"""
+	This object implements forwards differentiation with respect to multiple variables
+	"""
 	def __init__(self,x=1,d=1,respect=None):
 		self.respect = id(self) if respect==None else respect
-		self.x = x
+		self.x = x # the 'actual' value of this object.
 		if (type(d)==int):
 			self.d={self:d}
 		else:
 			self.d=d
 	def processderivs(self,o,l):
+		# this is a helpful little macro i've made.
+		# takes: another dual object, a lambda taking four arguments.
+		# this function will merge two dictionaries.
+		# if there is a collision between the two dictionaries, the lambda given by the user is called to combine the two collisions in some way.
 		d = {}
 		for v in self.d.keys():
 			if (v in o.d.keys()):
