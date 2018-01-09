@@ -44,7 +44,7 @@ class Dual:
 	__rmul__=__mul__
 	def __abs__(self):
 		x = abs(self.x)
-		d = {k:v*(x/abs(x)) for k,v in self.d.items()}
+		d = {k:abs(v) for k,v in self.d.items()}
 		return Dual(x=x,d=d)
 	def __sub__(self,o):
 		return self+(-1*o)
@@ -63,7 +63,9 @@ class Dual:
 	def __rpow__(self,o):
 		raise NotImplementedError("Power of a variable not implemented!")
 	def __int__(self):
-		return self.x
+		return int(self.x)
+	def __float__(self):
+		return float(self.x)
 	def __str__(self):
 		return str([self.x,self.d])
 	def __getitem__(self,x):
@@ -84,6 +86,8 @@ if __name__=="__main__":
 	print("Starting tests.")
 	a = Dual()
 	b = Dual()
+	c = Dual()
+	c.x=-2
 	for x in range(-5,5):
 		a.x=x
 		b.x=x
@@ -93,5 +97,6 @@ if __name__=="__main__":
 		assert (b+a-a-b)[a] == 0
 		assert (1-a).x == 1-x
 		assert (5*(a**3)+15)[a] == 15*(x**2)
+		print(((c-b)**2)[b])
 	print("Tests passed!")
 	print("Our implementation of sine is inaccurate by an max of ~" + str(max([abs(math.sin(x/10.0)-dangerous_sine(x/10.0)) for x in range(-100,100)])) + ".")
