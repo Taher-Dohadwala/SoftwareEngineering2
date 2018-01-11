@@ -1,5 +1,5 @@
 from multivariabledual import Dual
-
+from decimal import Decimal
 def f(x,m,b):
         return m*x+b
 def loss(y,y1):
@@ -9,9 +9,9 @@ m = 2
 b = 0
 X = [x for x in range(20)]
 Y = [f(x,m,b) for x in range(20)]
-pm = Dual(x=1)
-pb = Dual(x=1)
-lr = 0.001
+pm = Dual(x=Decimal(1))
+pb = Dual(x=Decimal(1))
+lr = Decimal(0.001)
 for i in range(20):
         o = 0
         for s in range(len(X)):

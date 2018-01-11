@@ -54,6 +54,7 @@ class Dual:
 		if (type(o)==Dual):
 			raise NotImplementedError("Power of a variable not implemented!")
 		else:
+			#print(self.x,"^", o)
 			x = self.x**o
 			t = self.x**(o-1)
 			d = {k:o*v*t for k,v in self.d.items()}
