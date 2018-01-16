@@ -37,10 +37,11 @@ class linear_classifier:
 
             for s in range(len(x_train)):
                 o += self.loss(y_train[s],self.f(x_train[s]))
+                print(o)
 
-            print (self.pm)
-            self.pm.x -= (o[self.pm]/len(x_train))*self.lr
-            self.pb.x -= (o[self.pb]/len(x_train))*self.lr
+        
+            self.pm.x -= (o/len(x_train))*self.lr
+            self.pb.x -= (o/len(x_train))*self.lr
             print ("m:",str(self.pm.x) + " : "+ "b:",str(self.pb.x))
     
 
