@@ -2,7 +2,8 @@ import gc
 import subprocess
 import time
 import random
-
+import timeit
+import sys
 """
 - generate a list of ids
 - every instance remembers it's parent
@@ -11,7 +12,7 @@ import random
 
 class Offloader:
 	def __init__(self):
-		self.prog = ""
+		self.prog = []
 		self.instances = []
 		self.occupied = []
 		self.constants = {}
@@ -48,7 +49,7 @@ class Offloader:
 	def compile(self):
 		self.garbage_collect()
 		# ok step one tell the program how much memory we need in total
-		self.cprog="h"+ str(self.maxalloc+1) + " " + self.prog
+		self.cprog="h"+ str(self.maxalloc+1) + " " + " ".join(self.prog)
 		# step two print out everything the user just asked for
 		for i in self.occupied:
 			self.cprog+=str(i) + " g "
@@ -73,10 +74,10 @@ class OffloadInstance:
 		self.alloc=alloc
 		if (alloc==None): # we're an input.
 			self.alloc = o.allocate_slot()
-			self.o.prog += str(self.alloc) + " f%f " # allocate this value
+			self.o.prog.append(str(self.alloc) + " f%f") # allocate this value
 			self.o.update_occupied_array()
 	def get_opstring(self,d,i,op,i2): #redo for llvm once we know this works
-		return str(d) + " " + str(i2) + " " + str(i) + " " + op + " "
+		return str(d) + " " + str(i2) + " " + str(i) + " " + op
 	def get_other_index(self,p):
 		if (type(p)==int or type(p)==float):
 			p = float(p)
@@ -84,14 +85,14 @@ class OffloadInstance:
 				return self.o.constants[p]
 			else:
 				i = self.o.constants[p] = self.o.allocate_slot()
-				self.o.prog+=str(i)+" f"+str(p)+" " # allocate the constant
+				self.o.prog.append(str(i)+" f"+str(p)+" ") # allocate the constant
 				return i
 		elif(type(p)==OffloadInstance):
 			return p.alloc
 	def do_op(self,p,op,reverse=False):
 		i = self.get_other_index(p)
 		dst = self.o.allocate_slot()
-		self.o.prog+=self.get_opstring(dst,i,op,self.alloc) if reverse else self.get_opstring(dst,self.alloc,op,i)
+		self.o.prog.append(self.get_opstring(dst,i,op,self.alloc) if reverse else self.get_opstring(dst,self.alloc,op,i))
 		dsto = OffloadInstance(self.o,alloc=dst)
 		self.o.instances.append(dsto)
 		self.o.update_occupied_array()
@@ -134,6 +135,26 @@ def test_lambda(l):
 			pass
 	print("Passed test.")
 
+def test_function(f,params):
+	o = Offloader()
+	
+
+def dot(a,b):
+	acc = 0
+	for xa in a:
+		for xb in b:
+			acc += xa*xb
+		sys.stdout.write(".")
+		sys.stdout.flush()
+
+def dot_o(a,b,o):
+	acc = 0
+	for xa in a:
+		for xb in b:
+			acc += xa*xb
+		o.garbage_collect()
+		sys.stdout.write(".")
+		sys.stdout.flush()
 
 if __name__=="__main__":
 	test_lambda("lambda x: x+1")
@@ -143,8 +164,21 @@ if __name__=="__main__":
 	test_lambda("lambda x: x**5+1")
 	test_lambda("lambda x,y: x/y")	
 	test_lambda("lambda x,y,z: x**5+y/z")
+	o = Offloader()
+	dt = 50
+	params = [random.randrange(-20,20) for x in range(dt)]
+	t2 = [o.get_instance() for x in range(dt)]
+	tmp = time.time()
+	dot(params[0:int(dt/2)],params[int(dt/2):])
+	print("python took %f seconds." %(time.time()-tmp))
+	tmp = time.time()
+	a = dot_o(t2[0:int(dt/2)],t2[int(dt/2):],o)
+	o.compile()
+	print("compiling took %f seconds." %(time.time()-tmp))
+	tmp = time.time()
+	o.run(params)
+	print("running took %f seconds." %(time.time()-tmp))
 	
-
 
 
 
