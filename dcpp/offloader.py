@@ -17,29 +17,28 @@ class Offloader:
 		self.constants = {}
 		self.maxalloc = 0
 		self.outputs = {}
-		self.ids = []
 	def get_instance(self):
 		a = OffloadInstance(self)
 		self.instances.append(a)
 		return a
-
-	def update_occupied_array(self): # needs to be redone
+	def garbage_collect(self):
 		tmp = []
-		self.occupied=[]
-		self.ids = [id(x) for x in self.instances]
 		for i in self.instances:
 			gc.collect()
-			if(len(gc.get_referrers(i))==2 and not stack_scan(i)): # we're the only ones who have this (i, self.instances)
+			if(len(gc.get_referrers(i))==2): # we're the only ones who have this (i, self.instances)
 				tmp.append(i)
-			else:
-				self.occupied.append(i.alloc)
+		for i in tmp:
+			self.instances.remove(i)
+		self.update_occupied_array()
+
+	def update_occupied_array(self): # needs to be redone
+		self.occupied=[]
+		for i in self.instances:
+			self.occupied.append(i.alloc)
 		self.occupied+=list(self.constants.values())
 		if (self.maxalloc<len(self.occupied)):
 			self.maxalloc = len(self.occupied)
-		for i in tmp:
-			self.instances.remove(i)
-		print("occupation array updated: " + str(self.occupied))
-		print(self.prog)
+
 	def allocate_slot(self):
 		self.update_occupied_array()
 		x = 0
@@ -47,7 +46,7 @@ class Offloader:
 			x+=1
 		return x
 	def compile(self):
-		self.update_occupied_array()
+		self.garbage_collect()
 		# ok step one tell the program how much memory we need in total
 		self.cprog="h"+ str(self.maxalloc+1) + " " + self.prog
 		# step two print out everything the user just asked for
@@ -75,6 +74,7 @@ class OffloadInstance:
 		if (alloc==None): # we're an input.
 			self.alloc = o.allocate_slot()
 			self.o.prog += str(self.alloc) + " f%f " # allocate this value
+			self.o.update_occupied_array()
 	def get_opstring(self,d,i,op,i2): #redo for llvm once we know this works
 		return str(d) + " " + str(i2) + " " + str(i) + " " + op + " "
 	def get_other_index(self,p):
@@ -118,7 +118,8 @@ class OffloadInstance:
 
 def test_lambda(l):
 	o = Offloader()
-	print("%d arguments." % (l.__code__.co_argcount))
+	print(l)
+	l = eval(l)
 	t2 = [o.get_instance() for x in range(l.__code__.co_argcount)]
 	a = l(*t2)
 	o.compile()
@@ -135,15 +136,14 @@ def test_lambda(l):
 
 
 if __name__=="__main__":
-	test_lambda(lambda x: x+1)
-	test_lambda(lambda x,y: x+y)
-	test_lambda(lambda x,y,z: x*y*z)
-	test_lambda(lambda x: x**2)
-	test_lambda(lambda x: x**5+1)
-	test_lambda(lambda x,y: x/y)	
-	test_lambda(lambda x,y,z: x**5+y/z)
-
-
+	test_lambda("lambda x: x+1")
+	test_lambda("lambda x,y: x+y")
+	test_lambda("lambda x,y,z: x*y*z")
+	test_lambda("lambda x: x**2")
+	test_lambda("lambda x: x**5+1")
+	test_lambda("lambda x,y: x/y")	
+	test_lambda("lambda x,y,z: x**5+y/z")
+	
 
 
 
