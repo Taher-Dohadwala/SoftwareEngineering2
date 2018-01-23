@@ -2,14 +2,12 @@ import gc
 import subprocess
 import time
 import random
-import inspect # lord preserve us
 
-def stack_scan(o):
-	s = inspect.stack()
-	for x in s:
-		if (o in x.frame.f_locals.values()):
-			return True
-	return False
+"""
+- generate a list of ids
+- every instance remembers it's parent
+- when trying to prove it shouldn't be saved, must also prove that there isn't a living ancestor.
+"""
 
 class Offloader:
 	def __init__(self):
@@ -19,13 +17,16 @@ class Offloader:
 		self.constants = {}
 		self.maxalloc = 0
 		self.outputs = {}
+		self.ids = []
 	def get_instance(self):
 		a = OffloadInstance(self)
 		self.instances.append(a)
 		return a
-	def update_occupied_array(self):
+
+	def update_occupied_array(self): # needs to be redone
 		tmp = []
 		self.occupied=[]
+		self.ids = [id(x) for x in self.instances]
 		for i in self.instances:
 			gc.collect()
 			if(len(gc.get_referrers(i))==2 and not stack_scan(i)): # we're the only ones who have this (i, self.instances)
