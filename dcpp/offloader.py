@@ -1,13 +1,24 @@
 import gc
 import subprocess
 import time
+import random
+import inspect # lord preserve us
+
+def stack_scan(o):
+	s = inspect.stack()
+	for x in s:
+		if (o in x.frame.f_locals.values()):
+			return True
+	return False
 
 class Offloader:
-	prog = ""
-	instances = []
-	occupied = []
-	constants = {}
-	maxalloc = 0
+	def __init__(self):
+		self.prog = ""
+		self.instances = []
+		self.occupied = []
+		self.constants = {}
+		self.maxalloc = 0
+		self.outputs = {}
 	def get_instance(self):
 		a = OffloadInstance(self)
 		self.instances.append(a)
@@ -16,7 +27,8 @@ class Offloader:
 		tmp = []
 		self.occupied=[]
 		for i in self.instances:
-			if(len(gc.get_referrers(i))==2): # we're the only ones who have this (i, self.instances)
+			gc.collect()
+			if(len(gc.get_referrers(i))==2 and not stack_scan(i)): # we're the only ones who have this (i, self.instances)
 				tmp.append(i)
 			else:
 				self.occupied.append(i.alloc)
@@ -25,27 +37,35 @@ class Offloader:
 			self.maxalloc = len(self.occupied)
 		for i in tmp:
 			self.instances.remove(i)
+		print("occupation array updated: " + str(self.occupied))
+		print(self.prog)
 	def allocate_slot(self):
 		self.update_occupied_array()
 		x = 0
 		while(x in self.occupied):
 			x+=1
 		return x
-	def compile(self,outputs):
+	def compile(self):
+		self.update_occupied_array()
 		# ok step one tell the program how much memory we need in total
 		self.cprog="h"+ str(self.maxalloc+1) + " " + self.prog
 		# step two print out everything the user just asked for
-		for i in outputs:
-			self.cprog+=str(i.alloc) + " g "
-		self.cprog+=" e"
+		for i in self.occupied:
+			self.cprog+=str(i) + " g "
+		self.cprog+="e"
 		return self.cprog
 	def run(self,inputs):
 		if (not hasattr(self,"cprog")):
-			raise Exception("Program not compiled!")
+			self.compile()
 		t = time.time()
 		p = subprocess.Popen(["./offload"],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
-		print("%f seconds runtime. " % (time.time()-t))
-		return [float(x) for x in str(p.communicate(input=bytes(self.cprog%tuple(inputs),encoding="ascii"))[0],encoding="ascii")[:-1].split("\n")]
+		#print("%f seconds runtime. " % (time.time()-t))
+		tmp = [float(x) for x in str(p.communicate(input=bytes(self.cprog%tuple(inputs),encoding="ascii"))[0],encoding="ascii")[:-1].split("\n")]
+		for x in range(len(self.instances)):
+			self.outputs[self.instances[x]] = tmp[x]
+		return self.outputs
+	def __getitem__(self,v):
+		return self.outputs[v]
 
 class OffloadInstance:
 	def __init__(self,o,alloc=None):
@@ -73,6 +93,7 @@ class OffloadInstance:
 		self.o.prog+=self.get_opstring(dst,i,op,self.alloc) if reverse else self.get_opstring(dst,self.alloc,op,i)
 		dsto = OffloadInstance(self.o,alloc=dst)
 		self.o.instances.append(dsto)
+		self.o.update_occupied_array()
 		return dsto
 	def __add__(self,p):
 		return self.do_op(p,"+")
@@ -94,18 +115,32 @@ class OffloadInstance:
 		return self.do_op(p,"^",reverse=True)
 
 
+def test_lambda(l):
+	o = Offloader()
+	print("%d arguments." % (l.__code__.co_argcount))
+	t2 = [o.get_instance() for x in range(l.__code__.co_argcount)]
+	a = l(*t2)
+	o.compile()
+	print(o.cprog)
+	for x in range(100):
+		try:
+			t1 = [random.randrange(-5,5) for x in range(l.__code__.co_argcount)]
+			tmp = o.run(t1)[a]-l(*t1)
+			if (abs(tmp)>0.001):
+				raise Exception(str(o.run(t1)[a]) + " vs. " + str(l(*t1)) + " for args " + str(t1))
+		except ZeroDivisionError:
+			pass
+	print("Passed test.")
+
 
 if __name__=="__main__":
-	o = Offloader()
-	a = o.get_instance()
-	b = 1
-	for x in range(10):
-		a+=x
-		b+=x
-	print(b)
-	o.compile([a])
-	print(o.run([1]))
-
+	test_lambda(lambda x: x+1)
+	test_lambda(lambda x,y: x+y)
+	test_lambda(lambda x,y,z: x*y*z)
+	test_lambda(lambda x: x**2)
+	test_lambda(lambda x: x**5+1)
+	test_lambda(lambda x,y: x/y)	
+	test_lambda(lambda x,y,z: x**5+y/z)
 
 
 

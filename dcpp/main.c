@@ -61,7 +61,7 @@ int main() {
 				debugop();
 				break;
 			case '^':
-				heap[params[2]]=pow(heap[params[0]],heap[params[1]]);
+				heap[params[2]]=(float)pow((double)heap[params[0]],(double)heap[params[1]]);
 				debugop();
 				break;
 			case 'g':
