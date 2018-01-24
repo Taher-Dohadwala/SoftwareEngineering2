@@ -4,11 +4,6 @@ import time
 import random
 import timeit
 import sys
-"""
-- generate a list of ids
-- every instance remembers it's parent
-- when trying to prove it shouldn't be saved, must also prove that there isn't a living ancestor.
-"""
 
 class Offloader:
 	def __init__(self):
@@ -17,7 +12,6 @@ class Offloader:
 		self.occupied = []
 		self.constants = {}
 		self.maxalloc = 0
-		self.outputs = {}
 	def get_instance(self):
 		a = OffloadInstance(self)
 		self.instances.append(a)
@@ -63,8 +57,7 @@ class Offloader:
 		#print("%f seconds runtime. " % (time.time()-t))
 		tmp = [float(x) for x in str(p.communicate(input=bytes(self.cprog%tuple(inputs),encoding="ascii"))[0],encoding="ascii")[:-1].split("\n")]
 		for x in range(len(self.instances)):
-			self.outputs[self.instances[x]] = tmp[x]
-		return self.outputs
+			self.instances[x].v = tmp[x]
 	def __getitem__(self,v):
 		return self.outputs[v]
 
@@ -72,6 +65,7 @@ class OffloadInstance:
 	def __init__(self,o,alloc=None):
 		self.o = o
 		self.alloc=alloc
+		self.v = 0
 		if (alloc==None): # we're an input.
 			self.alloc = o.allocate_slot()
 			self.o.prog.append(str(self.alloc) + " f%f") # allocate this value
@@ -115,6 +109,8 @@ class OffloadInstance:
 		return self.do_op(p,"^")
 	def __rpow__(self,p):
 		return self.do_op(p,"^",reverse=True)
+	def __float__(self):
+		return float(self.v)
 
 
 def test_lambda(l):
@@ -128,7 +124,8 @@ def test_lambda(l):
 	for x in range(100):
 		try:
 			t1 = [random.randrange(-5,5) for x in range(l.__code__.co_argcount)]
-			tmp = o.run(t1)[a]-l(*t1)
+			o.run(t1)
+			tmp = float(a)-l(*t1)
 			if (abs(tmp)>0.001):
 				raise Exception(str(o.run(t1)[a]) + " vs. " + str(l(*t1)) + " for args " + str(t1))
 		except ZeroDivisionError:
